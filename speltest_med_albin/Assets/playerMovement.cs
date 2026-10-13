@@ -1,97 +1,110 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
-    [Header("Movement")]
-    public float moveSpeed = 5f;
-    public float jumpHeight = 2f;
-    public float gravity = -9.81f;
-
-    [Header("Mouse Look")]
-    public Transform playerCamera;
-    public float mouseSensitivity = 100f;
+    public float speed = 5f;
+    public float acceleration = 10f;
+    public float deceleration = 15f;
+    public float gravity = -20f;
+    public float jumpHeight = 1.5f;
+    public float jumpTimes = 1;
+    float Jumped = 0;
+    bool isCrouching = false;
 
     private CharacterController controller;
-    private float verticalVelocity;
-    private float xRotation = 0f;
+    private Vector3 velocity;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
-
-        // Lock and hide the cursor
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
     }
 
     void Update()
     {
-        MovePlayer();
-        LookAround();
+        // Get keyboard input
+        Vector2 input = Vector2.zero;
 
-        // Press Escape to unlock the cursor
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Keyboard.current != null)
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            input.x = (Keyboard.current.dKey.isPressed ? 1 : 0)
+                     - (Keyboard.current.aKey.isPressed ? 1 : 0);
+
+            input.y = (Keyboard.current.wKey.isPressed ? 1 : 0)
+                     - (Keyboard.current.sKey.isPressed ? 1 : 0);
         }
 
-        // Click to lock the cursor again
-        if (Input.GetMouseButtonDown(0))
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-    }
+        // Turn input into a direction
+        Vector3 direction =
+            transform.right * input.x +
+            transform.forward * input.y;
 
-    void MovePlayer()
-    {
-        // WASD input
-        float x = Input.GetAxis("Horizontal");
-        float z = Input.GetAxis("Vertical");
+        // Choose acceleration or deceleration
+        float currentAcceleration = input.magnitude > 0
+            ? acceleration
+            : deceleration;
 
-        Vector3 move = transform.right * x + transform.forward * z;
-        move = Vector3.ClampMagnitude(move, 1f);
+        // Gradually reach the desired speed
+        Vector3 targetVelocity = direction * speed;
 
-        controller.Move(move * moveSpeed * Time.deltaTime);
-
-        // Ground check and gravity
-        if (controller.isGrounded && verticalVelocity < 0f)
-        {
-            verticalVelocity = -2f;
-        }
-
-        // Jump with Space
-        if (controller.isGrounded && Input.GetButtonDown("Jump"))
-        {
-            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
-        }
-
-        verticalVelocity += gravity * Time.deltaTime;
-
-        controller.Move(
-            Vector3.up * verticalVelocity * Time.deltaTime
+        velocity.x = Mathf.MoveTowards(
+            velocity.x,
+            targetVelocity.x,
+            currentAcceleration * Time.deltaTime
         );
-    }
 
-    void LookAround()
-    {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+        velocity.z = Mathf.MoveTowards(
+            velocity.z,
+            targetVelocity.z,
+            currentAcceleration * Time.deltaTime
+        );
 
-        // Rotate the player horizontally
-        transform.Rotate(Vector3.up * mouseX);
-
-        // Rotate the camera vertically
-        xRotation -= mouseY;
-        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
-        if (playerCamera != null)
+        // Gravity
+        if (controller.isGrounded && velocity.y < 0)
         {
-            playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+            velocity.y = -2f;
         }
+
+        velocity.y += gravity * Time.deltaTime;
+
+        if (Keyboard.current != null &&
+       Keyboard.current.spaceKey.wasPressedThisFrame && Jumped <= jumpTimes)
+        {
+
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            Jumped = Jumped + 1;
+        }
+
+        // Jump
+        if (Keyboard.current != null &&
+            Keyboard.current.spaceKey.wasPressedThisFrame &&
+            controller.isGrounded)
+        {
+            Jumped = 0;
+            Jumped = Jumped + 1;
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
+
+
+        if (Keyboard.current != null &&
+     Keyboard.current.shiftKey.wasPressedThisFrame && isCrouching == true)
+        {
+            isCrouching = false;
+            transform.localScale = new Vector3(1f, 1f, 1f);
+            transform.position = new Vector3(0f, 5f, 0f);
+        }
+
+
+        else if (Keyboard.current != null &&
+           Keyboard.current.shiftKey.wasPressedThisFrame && isCrouching == false)
+        {
+            isCrouching = true;
+            transform.localScale = new Vector3(1f, 0.5f, 1f);
+            transform.position = new Vector3(0f, 5f, 0f);
+        }
+
+
+        // Move the character
+        controller.Move(velocity * Time.deltaTime);
     }
 }
-
