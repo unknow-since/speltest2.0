@@ -1,3 +1,5 @@
+using Mono.Cecil;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -15,13 +17,18 @@ public class PlayerMovement : MonoBehaviour
     private CharacterController controller;
     private Vector3 velocity;
 
+
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
+      float playerHeight = controller.height;
+      float crouchHeight = playerHeight / 2;
     }
 
     void Update()
     {
+        
         // Get keyboard input
         Vector2 input = Vector2.zero;
 
@@ -85,25 +92,30 @@ public class PlayerMovement : MonoBehaviour
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
         }
 
-
+        // Crouch
         if (Keyboard.current != null &&
      Keyboard.current.shiftKey.wasPressedThisFrame && isCrouching == true)
         {
             isCrouching = false;
-            transform.localScale = new Vector3(1f, 1f, 1f);
-            transform.position = new Vector3(0f, 5f, 0f);
+            transform.localScale = new Vector3(1f, 5f, 1f);
+            
+            if(Keyboard.current != null &&
+     Keyboard.current.shiftKey.wasPressedThisFrame && controller.isGrounded)
+            {
+                velocity.y = Mathf.Sqrt(jumpHeight * -1f * gravity);
+            }
         }
 
-
+        
         else if (Keyboard.current != null &&
            Keyboard.current.shiftKey.wasPressedThisFrame && isCrouching == false)
         {
             isCrouching = true;
-            transform.localScale = new Vector3(1f, 0.5f, 1f);
-            transform.position = new Vector3(0f, 5f, 0f);
+            transform.localScale = new Vector3(1f,2.5f, 1f);
+            transform.position = new Vector3(0f, +5f, 0f);
         }
 
-
+        
         // Move the character
         controller.Move(velocity * Time.deltaTime);
     }
